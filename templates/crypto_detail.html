@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ symbol.upper() }} | Trading Terminal</title>
+
+  <!-- Chart.js + Financial Plugin -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Poppins", sans-serif;
+      background-color: #f4f6f9;
+      color: #222;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ===== Left Sidebar ===== */
+    .sidebar {
+      width: 280px;
+      background-color: #fff;
+      border-right: 1px solid #ddd;
+      display: flex;
+      flex-direction: column;
+      padding: 15px;
+      overflow-y: auto;
+    }
+
+    .sidebar h2 {
+      font-size: 20px;
+      text-align: center;
+      margin-bottom: 15px;
+      color: #007bff;
+    }
+
+    .coin-card {
+      background: #f0f0f0;
+      margin-bottom: 10px;
+      padding: 12px 15px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: 0.3s;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 500;
+    }
+
+    .coin-card:hover {
+      background-color: #007bff;
+      color: #fff;
+      transform: scale(1.02);
+    }
+
+    .coin-name {
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .coin-change {
+      font-weight: 600;
+      font-size: 14px;
+      color: #00c853;
+    }
+
+    .coin-change.negative { color: #d50000; }
+
+    /* ===== Main Chart Area ===== */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .top-bar h2 {
+      color: #007bff;
+      margin: 0;
+    }
+
+    .price {
+      font-size: 24px;
+      font-weight: bold;
+      color: #00c853;
+    }
+
+    canvas {
+      width: 100%;
+      height: 500px;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+    }
+
+    /* ===== Trade Panel ===== */
+    .trade-panel {
+      width: 280px;
+      background-color: #fff;
+      border-left: 1px solid #ddd;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      justify-content: space-between;
+    }
+
+    .trade-btn {
+      padding: 15px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 8px;
+      font-size: 18px;
+      color: white;
+      cursor: pointer;
+      font-weight: bold;
+      transition: 0.3s;
+    }
+
+    .buy { background-color: #00c853; }
+    .buy:hover { background-color: #00e676; }
+    .sell { background-color: #d50000; }
+    .sell:hover { background-color: #ff1744; }
+
+    .trade-info {
+      background: #f5f5f5;
+      border-radius: 8px;
+      padding: 15px;
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+
+    .trade-info h3 { color: #007bff; font-size: 16px; margin-bottom: 8px; }
+
+    /* ===== News Section ===== */
+    .news-section {
+      background: #fff;
+      color: #222;
+      border-radius: 8px;
+      padding: 15px;
+      margin-top: 25px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+
+    .news-section h3 { color: #007bff; margin-bottom: 8px; }
+    .news-section a { color: #007bff; text-decoration: none; }
+    .news-section a:hover { text-decoration: underline; }
+  </style>
+</head>
+
+<body>
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <h2>Top Cryptos</h2>
+    <div id="coinList">Loading...</div>
+  </div>
+
+  <!-- Main Chart Area -->
+  <div class="main">
+<div class="top-bar">
+  <div style="display:flex; align-items:center; gap:10px;">
+    <img id="coinImg" src="" alt="{{ symbol.upper() }}" style="width:32px; height:32px; border-radius:50%;">
+    <!-- Make coin name clickable -->
+    <a id="coinSymbol" href="#" style="text-decoration:none; color:#007bff; font-size:22px; font-weight:bold;">
+      {{ symbol.upper() }} / INR
+    </a>
+  </div>
+  <div class="price" id="currentPrice">Loading...</div>
+</div>
+
+
+
+    <canvas id="candlestickChart"></canvas>
+
+    <!-- News below chart -->
+    <div class="news-section">
+      <h3>Latest News</h3>
+      {% if news.title %}
+        <p>
+          <strong>{{ news.title }}</strong><br>
+          {{ news.description }}<br>
+          <a href="{{ news.url }}" target="_blank">Read more</a><br>
+          <small>Published at: {{ news.publishedAt }}</small>
+        </p>
+      {% else %}
+        <p>No recent news available for this coin.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Trade Panel -->
+  <div class="trade-panel">
+    <div class="trade-info">
+      <h3>Market Stats</h3>
+      <p><b>24h High:</b> <span id="high">--</span></p>
+      <p><b>24h Low:</b> <span id="low">--</span></p>
+      <p><b>Change:</b> <span id="change">--</span></p>
+    </div>
+    <div>
+      <button class="trade-btn buy">BUY {{ symbol.upper() }}</button>
+      <button class="trade-btn sell">SELL {{ symbol.upper() }}</button>
+    </div>
+  </div>
+
+  <script>
+    const chartData = {{ chart_data | tojson }};
+    const ctx = document.getElementById('candlestickChart').getContext('2d');
+
+    // Candlestick Chart
+    const chart = new Chart(ctx, {
+      type: 'candlestick',
+      data: {
+        datasets: [{
+          label: '{{ symbol.upper() }}',
+          data: chartData,
+          borderWidth: 0.8,
+          color: { up: '#00c853', down: '#d50000', unchanged: '#999' }
+        }]
+      },
+      options: {
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { type: 'time', time: { unit: 'hour' }, grid: { color: '#eee' } },
+          y: { grid: { color: '#eee' } }
+        }
+      }
+    });
+
+    // Fetch Stats
+    async function fetchStats() {
+      const res = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids={{ symbol }}`);
+      const data = await res.json();
+      if (!data.length) return;
+
+      const coin = data[0];
+      document.getElementById('currentPrice').textContent = `$${coin.current_price.toLocaleString()}`;
+
+// Update top-bar image and symbol
+// Update top-bar image and symbol
+document.getElementById('coinImg').src = coin.image;
+document.getElementById('coinImg').alt = coin.name;
+
+const coinLink = document.getElementById('coinSymbol');
+coinLink.textContent = `${coin.name} / INR`;
+coinLink.href = `/coins/${coin.id}`; // new page route for individual coin
+
+
+document.getElementById('high').textContent = `$${coin.high_24h.toLocaleString()}`;
+document.getElementById('low').textContent = `$${coin.low_24h.toLocaleString()}`;
+document.getElementById('change').textContent = `${coin.price_change_percentage_24h.toFixed(2)}%`;
+document.getElementById('change').style.color = coin.price_change_percentage_24h >= 0 ? '#00c853' : '#d50000';
+
+    }
+    fetchStats();
+    setInterval(fetchStats, 30000);
+
+    // Load Sidebar Coins
+    async function loadSidebar() {
+      const res = await fetch("/api/crypto");
+      const data = await res.json();
+      const list = document.getElementById("coinList");
+      list.innerHTML = "";
+
+      data.forEach(coin => {
+  const div = document.createElement("div");
+  div.className = "coin-card";
+  div.onclick = () => window.location.href = `/crypto/${coin.id}`;
+
+  // Left part: image + symbol
+  const left = document.createElement("div");
+  left.style.display = "flex";
+  left.style.alignItems = "center";
+  left.style.gap = "10px";
+
+  const img = document.createElement("img");
+  img.src = coin.image;
+  img.alt = coin.name;
+  img.style.width = "24px";
+  img.style.height = "24px";
+  img.style.borderRadius = "50%";
+
+  const name = document.createElement("div");
+  name.className = "coin-name";
+  name.textContent = `${coin.symbol.toUpperCase()} • ₹${coin.current_price.toLocaleString()}`;
+
+  left.appendChild(img);
+  left.appendChild(name);
+
+  // Right part: 24h change
+  const change = document.createElement("div");
+  change.className = "coin-change";
+  if (coin.price_change_percentage_24h < 0) change.classList.add("negative");
+  change.textContent = `${coin.price_change_percentage_24h.toFixed(2)}%`;
+
+  div.appendChild(left);
+  div.appendChild(change);
+  list.appendChild(div);
+});
+
+    }
+    loadSidebar();
+  </script>
+</body>
+</html>

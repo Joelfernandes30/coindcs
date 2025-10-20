@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>{{ symbol.upper() }} | Coin Page</title>
+
+<!-- Chart.js dependencies -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial"></script>
+
+<style>
+  body { 
+    font-family: Poppins, sans-serif; 
+    padding: 20px; 
+    background: #f4f6f9; 
+  }
+
+  h2 {
+    text-align: center;
+    color: #222;
+  }
+
+  .trade-btn { 
+    padding: 12px; 
+    margin: 10px; 
+    border: none; 
+    border-radius: 6px; 
+    color: white; 
+    cursor: pointer; 
+    font-weight: 600;
+  }
+
+  .buy { background: #00c853; }
+  .sell { background: #d50000; }
+
+  .suggestion-box { 
+    margin-top: 20px; 
+    padding: 15px; 
+    border: 1px solid #ddd; 
+    border-radius: 6px; 
+    background: #fff; 
+    max-width: 400px; 
+    margin-left: auto; 
+    margin-right: auto;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  }
+
+  .suggestion-box h3 {
+    color: #333;
+    text-align: center;
+  }
+
+  #candlestickChart {
+    margin-top: 30px;
+  }
+</style>
+</head>
+
+<body>
+  <h2>{{ symbol.upper() }} / INR</h2>
+
+  <canvas id="candlestickChart"></canvas>
+
+  <div style="text-align:center;">
+    <button class="trade-btn buy">BUY {{ symbol.upper() }}</button>
+    <button class="trade-btn sell">SELL {{ symbol.upper() }}</button>
+  </div>
+
+  <div class="suggestion-box" id="suggestion-box">
+    <h3>Suggestions</h3>
+    <p>Loading model prediction...</p>
+  </div>
+
+  <!-- Candlestick Chart -->
+  <script>
+  const chartData = {{ chart_data | tojson }};
+  const ctx = document.getElementById('candlestickChart').getContext('2d');
+
+  new Chart(ctx, {
+    type: 'candlestick',
+    data: {
+      datasets: [{
+        label: '{{ symbol.upper() }}',
+        data: chartData,
+        color: { up: '#00c853', down: '#d50000', unchanged: '#999' }
+      }]
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { type: 'time', time: { unit: 'day' }, grid: { color:'#eee' } },
+        y: { grid: { color:'#eee' } }
+      }
+    }
+  });
+  </script>
+
+  <!-- Dynamic Prediction Fetch -->
+  <script>
+  const symbol = "{{ symbol | upper }}".trim();
+
+  const suggestionBox = document.getElementById('suggestion-box');
+
+  let endpoint = '';
+
+const sym = symbol.toUpperCase();
+if (sym === 'BTC' || sym === 'BITCOIN') {
+  endpoint = '/api/predict_btc';
+} else if (sym === 'ETH' || sym === 'ETHEREUM') {
+  endpoint = '/api/predict_eth';
+}
+
+  if (endpoint) {
+    fetch(endpoint)
+      .then(res => res.json())
+      .then(data => {
+        suggestionBox.innerHTML = `
+          <h3>${symbol}-INR Suggestion</h3>
+          <p><strong>Price:</strong> ₹${data.price.toLocaleString()}</p>
+          <p><strong>Model Suggestion:</strong> ${data.suggestion}</p>
+        `;
+      })
+      .catch(err => {
+        suggestionBox.innerHTML = `
+          <h3>${symbol}-INR Suggestion</h3>
+          <p style="color:red;">Error fetching prediction.</p>
+        `;
+        console.error("Prediction fetch error:", err);
+      });
+  } else {
+    suggestionBox.innerHTML = `
+      <h3>${symbol}-INR Suggestion</h3>
+      <p>No ML model available for this coin yet.</p>
+    `;
+  }
+  </script>
+</body>
+</html>
